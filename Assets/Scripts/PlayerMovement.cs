@@ -2,26 +2,31 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlayerMovement : MonoBehaviour
 {
     Rigidbody rgb;
         
-    [SerializeField] float movementSpeed = 6f;
-    [SerializeField] float jumpForce = 5f;
-    [SerializeField] float jumperForce = 20f;
+    public float movementSpeed = 6f;
 
-    [SerializeField] Transform groundCheck;
-    [SerializeField] LayerMask ground;
+    public Transform cameraTransform;
+    public Transform bodyTransform;
+
+    public float yawRotationSpeed;
+    public float pitchRotationSpeed;
     
-    [SerializeField] float dashDistance = 5f;
-    [SerializeField] float dashTime = 0.5f;
-    private bool isDashing = false;
+    public float jumpForce = 5f;
+    public float jumperForce = 20f;
+
+    public Transform groundCheck;
+    public LayerMask ground;
 
     // Start is called before the first frame update
     void Start()
     {
         rgb = GetComponent<Rigidbody>();
+        Cursor.lockState = CursorLockMode.Locked;
     }
 
     // Update is called once per frame
@@ -30,41 +35,51 @@ public class PlayerMovement : MonoBehaviour
         float horizontalInput = Input.GetAxis("Horizontal");
         float verticalInput = Input.GetAxis("Vertical");
 
-        rgb.velocity = new Vector3(horizontalInput * movementSpeed, rgb.velocity.y, verticalInput * movementSpeed);
+        Vector3 cameraForward = new Vector3(cameraTransform.forward.x, 0f, cameraTransform.forward.z).normalized;
+
+        Vector3 moveDirection = (cameraForward * verticalInput + cameraTransform.right * horizontalInput).normalized;
+
+        rgb.velocity = new Vector3(moveDirection.x * movementSpeed, rgb.velocity.y, moveDirection.z * movementSpeed);
+        
+        var mouseXDelta = Input.GetAxis("Mouse X");
+
+        bodyTransform.Rotate(Vector3.up, Time.deltaTime * yawRotationSpeed * mouseXDelta);
+
+        var mouseYDelta = Input.GetAxis("Mouse Y");
+
+        var rotation = cameraTransform.localRotation;
+
+        var rotationX = rotation.eulerAngles.x;
+
+        rotationX += -Time.deltaTime * pitchRotationSpeed * mouseYDelta;
+        
+
+        var unClampedRotationX = rotationX;
+
+        if (unClampedRotationX >= 180)
+        {
+            unClampedRotationX -= 360;
+        }
+
+        var clampedRotationX = Mathf.Clamp(unClampedRotationX, -60, 60);
+
+        cameraTransform.localRotation =
+            Quaternion.Euler(new Vector3(
+                clampedRotationX,
+                rotation.eulerAngles.y,
+                rotation.eulerAngles.z
+            ));
         
         if (Input.GetButtonDown("Jump") && CheckGround())
         {
             Jump();
         }
         
-        if (Input.GetKeyDown(KeyCode.LeftShift) && !isDashing)
-        {
-            if (Mathf.Abs(horizontalInput) > 0.1f || Mathf.Abs(verticalInput) > 0.1f)
-            {
-                Vector3 dashDirection = new Vector3(horizontalInput, 0f, verticalInput).normalized;
-                StartCoroutine(Dash(dashDirection));
-            }
-        }
     }
 
     void Jump()
     {
         rgb.velocity = new Vector3(rgb.velocity.x, jumpForce, rgb.velocity.z);
-    }
-
-    IEnumerator  Dash(Vector3 dashDirection)
-    {
-        isDashing = true;
-        float dashTimer = 0f;
-
-        while (dashTimer < dashTime)
-        {
-            transform.Translate(dashDirection * dashDistance * (Time.deltaTime / dashTime), Space.World);
-            dashTimer += Time.deltaTime;
-            yield return null;
-        }
-
-        isDashing = false;
     }
 
     void OnCollisionEnter(Collision collision)

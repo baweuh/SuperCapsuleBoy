@@ -6,22 +6,32 @@ using UnityEngine.SceneManagement;
 
 public class KillPlayer : MonoBehaviour
 {
+    public static int life = 4;
+
     private void OnCollisionEnter(Collision collision)
     {
         if (collision.gameObject.CompareTag("Enemy Body"))
         {
-            Die();
+            CheckLife();
+            Debug.Log(life);
         }
     }
 
-    void Die()
-    {
-        GetComponent<MeshRenderer>().enabled = false;
-        GetComponent<Rigidbody>().isKinematic = true;
-        GetComponent<PlayerMovement>().enabled = false;
-        Invoke(nameof(ReloadLevel), 1.3f);
+    void CheckLife()
+    { 
+        life--;
+        
+        if (life < 0)
+        {
+            SceneManager.LoadScene("YouLose");
+            Cursor.lockState = CursorLockMode.None;
+        }
+        else
+        {
+            Invoke(nameof(ReloadLevel), 0f);
+        }
     }
-
+    
     void ReloadLevel()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
